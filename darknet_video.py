@@ -26,7 +26,7 @@ def cvDrawBoxes(detections, img):
         pt1 = (xmin, ymin)
         pt2 = (xmax, ymax)
         cv2.rectangle(img, pt1, pt2, (0, 255, 0), 1)
-        print(detection[0])
+        
         cv2.putText(img,
                     detection[0].decode() +
                     " [" + str(round(detection[1] * 100, 2)) + "]",
@@ -108,7 +108,7 @@ def YOLO():
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         print(1/(time.time()-prev_time))
         cv2.imshow('Demo', image)
-        cv2.waitKey(3)
+        cv2.waitKey(0)
     cap.release()
     out.release()
 
