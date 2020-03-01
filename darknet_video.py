@@ -8,6 +8,7 @@ import time
 import darknet
 import time
 import csv
+from lxml import etree as ET
 
 def convertBack(x, y, w, h):
     xmin = int(round(x - (w / 2)))
@@ -117,10 +118,17 @@ def YOLO():
     pts2 = np.float32([[0,0],[260,0],[0,426],[260,426]])
     matrix = cv2.getPerspectiveTransform(pts1,pts2)
     
-    while True:
+    tree = ET.ElementTree()
+    root = ET.Element("root")
+
+    max_frame = 100
+    current_frame = 0
+
+    while current_frame <= max_frame:
+        current_frame = current_frame + 1
         prev_time = time.time()
         # print(time.asctime(time.localtime(prev_time)))
-        print(prev_time)
+        print("current_time:", prev_time, ", current_frame:", current_frame)
         ret, frame_read = cap.read()
         frame_rgb = cv2.cvtColor(frame_read, cv2.COLOR_BGR2RGB)
         frame_resized = cv2.resize(frame_rgb,
@@ -131,15 +139,45 @@ def YOLO():
         darknet.copy_image_from_bytes(darknet_image,frame_resized.tobytes())
 
         detections = darknet.detect_image(netMain, metaMain, darknet_image, thresh=0.15)
-        
         image = cvDrawBoxes(detections, frame_rgb, 416)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        data = ET.SubElement(root, "data")
+        frame_time = ET.SubElement(data, "time")
+        frame_time.text = str(time.time())
+
+        for detection in detections:
+            if detection[0].decode() == "chair" or detection[0].decode() == "person" or detection[0].decode() == "diningtable":
+                item = ET.SubElement(data, "item")
+                item_type = ET.SubElement(item, "type")
+                if detection[0].decode() == "chair": item_type.text = "chair"
+                if detection[0].decode() == "person": item_type.text = "person"
+                if detection[0].decode() == "diningtable": item_type.text = "diningtable"
+                x, y, w, h = detection[2][0],\
+                    detection[2][1],\
+                    detection[2][2],\
+                    detection[2][3]
+                xmin, ymin, xmax, ymax = convertBack(
+                    float(x), float(y), float(w), float(h))
+                # pt1 = (xmin, ymin)
+                # pt2 = (xmax, ymax)
+                # cv2.rectangle(img, pt1, pt2, (0, 255, 0), 1)
+                pt = (int(round((xmin+xmax)/2*1280/netMain)), int(round(ymax*720/netMain)))
+                x_coord, y_coord = getCoord(pt,matrix)
+                x = ET.SubElement(item, "x")
+                x.text = str(x_coord)
+                y = ET.SubElement(item, "y")
+                y.text = str(y_coord)
+
+
         print(format(1/(time.time()-prev_time),'.2f'),"fps")
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         cv2.imshow('Demo', image)
         cv2.waitKey(3)
     cap.release()
     # out.release()
+    tree._setroot(root)
+    tree.write("sample.xml",encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 if __name__ == "__main__":
     YOLO()
